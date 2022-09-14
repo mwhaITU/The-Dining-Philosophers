@@ -55,12 +55,12 @@ func aPhilosopher(index int, leftFork int, rightFork int, chL chan bool, chR cha
 			philosopher.timesEaten++
 			fmt.Println(philosopher.name+" has eaten", philosopher.timesEaten, "times")
 		}
-		if philosopher.eat && philosopher.useLeftFork == true {
+		if philosopher.useLeftFork == true {
 			philosopher.useLeftFork = false
 			chL <- false
 		}
 		
-		if philosopher.eat && philosopher.useRightFork == true {
+		if philosopher.useRightFork == true {
 			philosopher.useRightFork = false
 			chR <- false
 		}
