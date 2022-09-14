@@ -29,7 +29,6 @@ func aPhilosopher(index int, leftFork int, rightFork int, chL chan bool, chR cha
 
 	for true{
 		
-	
 	// If the philosopher has eaten 3 times it set philosopher.doneEating to true
 	if philosopher.timesEaten == 3 {
 		philosopher.doneEating = true
@@ -80,14 +79,11 @@ func aPhilosopher(index int, leftFork int, rightFork int, chL chan bool, chR cha
 func aFork(index int, ch chan bool) {
 	// Acces the specific fork in the forks slice.
 	fork := &forks[index]
+	// Channel from aPhilosopher which tells aFork if its active.
 	for(true){
 		boolVal := <-ch
 		fork.forkIsActive = boolVal
 	}
-	
-
-	// Channel from aPhilosopher which tells aFork if its active.
-	
 }
 
 func main() {
@@ -103,42 +99,44 @@ func main() {
 	// philosopher Steve
 	// 					   fork 4
 
-	// Philosophers is being created.
+	// Philosophers are being created.
 	philosophers = append(philosophers, Philosopher{name: "Bob", think: true, eat: false, useLeftFork: false, useRightFork: false, timesEaten: 0, doneEating: false})
 	philosophers = append(philosophers, Philosopher{name: "Joe", think: true, eat: false, useLeftFork: false, useRightFork: false, timesEaten: 0, doneEating: false})
 	philosophers = append(philosophers, Philosopher{name: "Ben", think: true, eat: false, useLeftFork: false, useRightFork: false, timesEaten: 0, doneEating: false})
 	philosophers = append(philosophers, Philosopher{name: "Jack", think: true, eat: false, useLeftFork: false, useRightFork: false, timesEaten: 0, doneEating: false})
 	philosophers = append(philosophers, Philosopher{name: "Steve", think: true, eat: false, useLeftFork: false, useRightFork: false, timesEaten: 0, doneEating: false})
 
-	// Forks is beining created.
+	// Forks are being created.
 	forks = append(forks, Fork{forkIsActive: false})
 	forks = append(forks, Fork{forkIsActive: false})
 	forks = append(forks, Fork{forkIsActive: false})
 	forks = append(forks, Fork{forkIsActive: false})
 	forks = append(forks, Fork{forkIsActive: false})
 
+	// Create channels for communication between philosophers and forks. Forks use only one channel and philosophers use two
 	ch0 := make(chan bool)
 	ch1 := make(chan bool)
 	ch2 := make(chan bool)
 	ch3 := make(chan bool)
 	ch4 := make(chan bool)
 	
-		go aPhilosopher(0, 4, 0, ch4, ch0)
-		go aPhilosopher(1, 0, 1, ch0, ch1)
-		go aPhilosopher(2, 2, 1, ch2, ch1)
-		go aPhilosopher(3, 2, 3, ch2, ch3)
-		go aPhilosopher(4, 3, 4, ch3, ch4)
+	// Start philosopher goroutines
+	go aPhilosopher(0, 4, 0, ch4, ch0)
+	go aPhilosopher(1, 0, 1, ch0, ch1)
+	go aPhilosopher(2, 2, 1, ch2, ch1)
+	go aPhilosopher(3, 2, 3, ch2, ch3)
+	go aPhilosopher(4, 3, 4, ch3, ch4)
 		
-		go aFork(0, ch0)
-		go aFork(1, ch1)
-		go aFork(2, ch2)
-		go aFork(3, ch3)
-		go aFork(4, ch4)
+	// Start fork goroutines
+	go aFork(0, ch0)
+	go aFork(1, ch1)
+	go aFork(2, ch2)
+	go aFork(3, ch3)
+	go aFork(4, ch4)
 
-	//fmt.Println(philosophers[0].name+" has eaten", philosophers[0].timesEaten, "times")
-	/*fmt.Println(philosophers[1].name+" has eaten", philosophers[1].timesEaten, "times")
-	fmt.Println(philosophers[2].name+" has eaten", philosophers[2].timesEaten, "times")
-	fmt.Println(philosophers[3].name+" has eaten", philosophers[3].timesEaten, "times")
-	fmt.Println(philosophers[4].name+" has eaten", philosophers[4].timesEaten, "times")*/
 	time.Sleep(1000*time.Millisecond)
 }
+
+
+// The program doesnt deadlock because the philosophers put down their forks regardless of eating. 
+// This ensures that even if a philosopher holds only one fork, he will let go of it eventually.
