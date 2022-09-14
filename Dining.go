@@ -16,78 +16,75 @@ type Philosopher struct {
 }
 
 type Fork struct {
-	forkIsActive bool
+	forkIsFree bool
 }
 
 var philosophers []Philosopher
 var forks []Fork
+var toFork []chan bool
+var toPhilo []chan bool
 
 // Function to create philolopher goroutines.
-func aPhilosopher(index int, leftFork int, rightFork int, chL chan bool, chR chan bool) {
+func aPhilosopher(index int, leftFork int, rightFork int) {
 	// Acces the specific philosopher in the philosophers slice.
 	philosopher := &philosophers[index]
+	ch_toLeft := toFork[leftFork]
+	ch_toRight := toFork[rightFork]
+	ch_fromLeft := toPhilo[leftFork]
+	ch_fromRight := toPhilo[rightFork]
 
-	for true{
-		
-	
-	// If the philosopher has eaten 3 times it set philosopher.doneEating to true
-	if philosopher.timesEaten == 3 {
-		philosopher.doneEating = true
-		fmt.Println(philosopher.name + " done")
-	}
-
-	// Logic to control when the philosopher should eat or think.
-	if !philosopher.doneEating {
-
-		if !forks[leftFork].forkIsActive {
+	for philosopher.timesEaten != 3 {
+		// If the philosopher has eaten 3 times it set philosopher.doneEating to true
+		// Logic to control when the philosopher should eat or think.
+		ch_toLeft <- true
+		if <-ch_fromLeft {
 			philosopher.useLeftFork = true
-			chL <- true
+			//fmt.Println(philosopher.name + " picked up left fork")
+		} else {
+			//fmt.Println(philosopher.name + " couldn't pick up left fork")
+			continue
 		}
-
-		if !forks[rightFork].forkIsActive {
+		ch_toRight <- true
+		if <-ch_fromRight {
 			philosopher.useRightFork = true
-			chR <- true
-		}
-
-		if philosopher.useLeftFork == true && philosopher.useRightFork == true {
-			philosopher.eat = true
-			fmt.Println(philosopher.name + " eating")
-			philosopher.timesEaten++
-			fmt.Println(philosopher.name+" has eaten", philosopher.timesEaten, "times")
-		}
-		if philosopher.useLeftFork == true {
+			//fmt.Println(philosopher.name + " picked up right fork")
+		} else {
 			philosopher.useLeftFork = false
-			chL <- false
+			ch_toLeft <- false
+			//fmt.Println(philosopher.name + " couldn't pick up right fork, putting both down")
+			continue
 		}
-		
-		if philosopher.useRightFork == true {
+		if philosopher.useLeftFork == true && philosopher.useRightFork == true {
+			philosopher.timesEaten++
+			fmt.Println(philosopher.name+" has eaten ", philosopher.timesEaten)
+			philosopher.useLeftFork = false
 			philosopher.useRightFork = false
-			chR <- false
-		}
-		if(philosopher.eat){
-			philosopher.eat = false
+			//fmt.Println(philosopher.name + " putting down forks ")
+			ch_toLeft <- false
+			ch_toRight <- false
 			fmt.Println(philosopher.name + " thinking")
 		}
-		
 	}
-	if(philosopher.doneEating){
-		break;
-	}
-}
+	fmt.Println(philosopher.name+" is done, times eaten: ", philosopher.timesEaten)
 }
 
 // Function to create fork goroutines.
-func aFork(index int, ch chan bool) {
+func aFork(index int, toFork chan bool, ToPhilo chan bool) {
 	// Acces the specific fork in the forks slice.
 	fork := &forks[index]
-	for(true){
-		boolVal := <-ch
-		fork.forkIsActive = boolVal
+	for {
+		request := <-toFork
+		if request {
+			if fork.forkIsFree {
+				fork.forkIsFree = false
+				ToPhilo <- true
+			} else {
+				ToPhilo <- false
+			}
+		} else {
+			fork.forkIsFree = true
+		}
 	}
-	
-
-	// Channel from aPhilosopher which tells aFork if its active.
-	
 }
 
 func main() {
@@ -101,7 +98,7 @@ func main() {
 	// philosopher Jack
 	//                     fork 3
 	// philosopher Steve
-	// 					   fork 4
+	//                     fork 4
 
 	// Philosophers is being created.
 	philosophers = append(philosophers, Philosopher{name: "Bob", think: true, eat: false, useLeftFork: false, useRightFork: false, timesEaten: 0, doneEating: false})
@@ -111,34 +108,53 @@ func main() {
 	philosophers = append(philosophers, Philosopher{name: "Steve", think: true, eat: false, useLeftFork: false, useRightFork: false, timesEaten: 0, doneEating: false})
 
 	// Forks is beining created.
-	forks = append(forks, Fork{forkIsActive: false})
-	forks = append(forks, Fork{forkIsActive: false})
-	forks = append(forks, Fork{forkIsActive: false})
-	forks = append(forks, Fork{forkIsActive: false})
-	forks = append(forks, Fork{forkIsActive: false})
+	forks = append(forks, Fork{forkIsFree: true})
+	forks = append(forks, Fork{forkIsFree: true})
+	forks = append(forks, Fork{forkIsFree: true})
+	forks = append(forks, Fork{forkIsFree: true})
+	forks = append(forks, Fork{forkIsFree: true})
 
-	ch0 := make(chan bool)
-	ch1 := make(chan bool)
-	ch2 := make(chan bool)
-	ch3 := make(chan bool)
-	ch4 := make(chan bool)
-	
-		go aPhilosopher(0, 4, 0, ch4, ch0)
-		go aPhilosopher(1, 0, 1, ch0, ch1)
-		go aPhilosopher(2, 2, 1, ch2, ch1)
-		go aPhilosopher(3, 2, 3, ch2, ch3)
-		go aPhilosopher(4, 3, 4, ch3, ch4)
-		
-		go aFork(0, ch0)
-		go aFork(1, ch1)
-		go aFork(2, ch2)
-		go aFork(3, ch3)
-		go aFork(4, ch4)
+	free0 := make(chan bool)
+	free1 := make(chan bool)
+	free2 := make(chan bool)
+	free3 := make(chan bool)
+	free4 := make(chan bool)
 
-	//fmt.Println(philosophers[0].name+" has eaten", philosophers[0].timesEaten, "times")
-	/*fmt.Println(philosophers[1].name+" has eaten", philosophers[1].timesEaten, "times")
-	fmt.Println(philosophers[2].name+" has eaten", philosophers[2].timesEaten, "times")
-	fmt.Println(philosophers[3].name+" has eaten", philosophers[3].timesEaten, "times")
-	fmt.Println(philosophers[4].name+" has eaten", philosophers[4].timesEaten, "times")*/
-	time.Sleep(1000*time.Millisecond)
+	toFork = append(toFork, free0)
+	toFork = append(toFork, free1)
+	toFork = append(toFork, free2)
+	toFork = append(toFork, free3)
+	toFork = append(toFork, free4)
+
+	done0 := make(chan bool)
+	done1 := make(chan bool)
+	done2 := make(chan bool)
+	done3 := make(chan bool)
+	done4 := make(chan bool)
+
+	toPhilo = append(toPhilo, done0)
+	toPhilo = append(toPhilo, done1)
+	toPhilo = append(toPhilo, done2)
+	toPhilo = append(toPhilo, done3)
+	toPhilo = append(toPhilo, done4)
+
+	// For-loop runs while the philosophers is not done eating.
+
+	go aPhilosopher(0, 4, 0)
+
+	go aPhilosopher(1, 0, 1)
+
+	go aPhilosopher(2, 1, 2)
+
+	go aPhilosopher(3, 2, 3)
+
+	go aPhilosopher(4, 3, 4)
+
+	go aFork(0, toFork[0], toPhilo[0])
+	go aFork(1, toFork[1], toPhilo[1])
+	go aFork(2, toFork[2], toPhilo[2])
+	go aFork(3, toFork[3], toPhilo[3])
+	go aFork(4, toFork[4], toPhilo[4])
+
+	time.Sleep(1000 * time.Millisecond)
 }
